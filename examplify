@@ -2,7 +2,7 @@
 import sys
 import os 
 import errno
-# import glob
+import glob
 # import shutil
 # from random import choice
 import re
@@ -17,24 +17,40 @@ script_name=program_name
 
 
 list_of_regex = {
-	':?port: [0-9]*' : ':port: 123456',
-	'port [ =0-9]*' : 'port = 123456',
-	':address: [a-zA-Z0-9.\"]*': ':address: example',
-	':from: [a-zA-Z.@\"\-]*': ':from: example@example.com',
-	':subject: [a-zA-Z.@\"\-\ ]*': ':from: example@example.com',
-	':username: [a-zA-Z.@\"\-\0-9_]*': ':username: username_example',
-	':password:[ a-zA-Z.@\"\-\0-9_]*' : ':password: password_example',
-	'host = [a-zA-Z0-9.\"]*' : 'host = example.example.it'
+
+	'username: [\w\d]*(\n)' : 'username: username_example\n',
+	':username: [\w\d]*(\n)' : ':username: username_example\n',
+
+	'password: [\w\d]*(\n)' : 'password: password_example\n',
+	':password: [\w\d]*(\n)' : ':password: password_example\n',
+
+	'host: [\w\d\.]*(\n)' : 'host: host.example.it\n',
+	':host: [\w\d\.]*(\n)' : ':host: host.example.it\n',
+	'host = [\w\d\.-]*' : 'host = host.example.it',
+
+
+	'port = [\d]*' : 'port = 123456',
+	'port: [\w\d\.]*(\n)': 'port: 123456\n',
+	':port: [\w\d\.]*(\n)': ':port: 123456\n',
+
+	'from: [\w\d]*(\n)': 'from: no-reply@example.com\n',
+	':from: [\w\d]*(\n)': ':from: no-reply@example.com\n',
+
+	'address: [\w\d\.]*(\n)': 'address: smtp.example.net\n',
+	':address: [\w\d\.]*(\n)': ':address: smtp.example.net\n',
+
+	'database: [\w\d]*(\n)' : 'database: example\n',
+	':database: [\w\d]*(\n)' : ':database: example\n',
+
 }
 
 
-# def getListOfFilesToCache():
-# 	#from .wizzy-config
-# 	l = list()
-# 	f = open(config_filename, 'r')
-# 	for line in f:
-# 	    l.append(line.rstrip('\r\n'))
-# 	return l
+def getListOfFilesToExamplify(file):
+	l = list()
+	f = open(file, 'r')
+	for line in f:
+	    l.append(line.rstrip('\r\n'))
+	return l
 
 # def isModified(f):
 # 	if not os.path.exists(os.path.abspath(f)) :
@@ -176,7 +192,7 @@ class TestSequenceFunctions(unittest.TestCase):
 		self.assertEqual(apply_regex(':subject: "this is a subject"'),list_of_regex[':subject: [a-zA-Z.@\"\-\ ]*'])
 
 		#Test username
-		self.assertEqual(apply_regex(':username: "my_username_has_numb3r5"'),list_of_regex[':username: [a-zA-Z.@\"\-\0-9_]*'])
+		self.assertEqual(apply_regex(':username: "my_username_has_numb3r5"'),list_of_regex[':username: [a-zA-Z.@\"\-0-9_]*'])
 		
 		#Test password
 		self.assertEqual(apply_regex(':password: test'),list_of_regex[':password:[ a-zA-Z.@\"\-\0-9_]*'])
@@ -186,11 +202,30 @@ class TestSequenceFunctions(unittest.TestCase):
 		self.assertEqual(apply_regex('host = dbrails.test.it'),list_of_regex['host = [a-zA-Z0-9.\"]*'])
 		
 
+def search_for_config_files():
+	#from .wizzy-config
+	# f = open(config_filename, 'r')
+	for config_file in config_filename:
+		# print config_file
+		if glob.glob(config_file):
+			print "Found a "+config_file+" file."
+
+			for element in  getListOfFilesToExamplify(config_file):
+				if  not glob.glob(os.path.abspath(element)):
+				#The file(s) are in the config file but not on the os !
+					print "ERROR! Seems that "+element+" is not present on your os! Can you check the "+config_file+" for missing files?"
+			for files in glob.glob(os.path.abspath(element)):
+				print "Examplifying "+files+ " .."
+				examplify(files)
+				print "		-> "+ files + " examplified"
+			return True
 
 def examplify(file):
 	try:
 		originalString = file_to_string(file)
-		print apply_regex(originalString)
+		f = open(file, 'w')
+		f.write(apply_regex(originalString))
+		f.close()
 	except Exception as detail :
 		print str(detail)
 		exit(1)
@@ -203,6 +238,8 @@ def exec_arg(argv):
 	if len(argv) == 1:
 		# examplify
 		print "Exec examplify from " + str(config_filename)
+		if not search_for_config_files():
+			print "ERROR! You need at least one configuration file between: "+str(config_filename)
 	elif (len(argv) == 2 and (argv[1]=="test" )):
 		# run some tests
 		suite = unittest.TestLoader().loadTestsFromTestCase(TestSequenceFunctions)
@@ -211,6 +248,8 @@ def exec_arg(argv):
 	else:
 		# examplify < file1, file2 >
 		for f in argv[1:] :
+			print "Fixing file: " + f
 			examplify(f)
+			print "-> "+ f + " fixed"
 
 exec_arg(sys.argv)
