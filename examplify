@@ -42,6 +42,12 @@ list_of_regex = {
 	'database: [\w\d]*(\n)' : 'database: example\n',
 	':database: [\w\d]*(\n)' : ':database: example\n',
 
+	':database: [\w\d]*(\n)' : ':database: example\n',
+
+	#URL
+	'"http://[\w./\?=&]*"' : '"http://www.example.ex"',
+	#EMAIL
+	'"[\w]*@[\w]*[.[\w]*]*"' : '"email@email.em"',
 }
 
 
